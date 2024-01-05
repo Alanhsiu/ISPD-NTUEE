@@ -1,11 +1,9 @@
 import numpy as np
-
+from algorithm import a_star_search, Point3D
 class Net:
     def __init__(self, name, access_points):
         self.name = name
         self.access_points = access_points
-
-import numpy as np
 
 def read_cap_file(file_path):
     with open(file_path, 'r') as file:
@@ -46,6 +44,7 @@ def read_cap_file(file_path):
         'layerMinLengths': layerMinLengths
     }
 
+
 def read_net_file(file_path):
     nets = {}
     with open(file_path, 'r') as file:
@@ -55,25 +54,58 @@ def read_net_file(file_path):
         for line in file:
             line = line.strip()
             if line.startswith("Net"):
-                if current_net_name:  # save the previous net if there is one
+                if current_net_name:
                     nets[current_net_name] = access_points
                 current_net_name = line
                 access_points = []
             elif line.startswith("("):
-                continue
+                pass  
             elif line.startswith(")"):
-                if current_net_name:  # save the net when it's closed
-                    nets[current_net_name] = access_points
-                    current_net_name = ""
-                    access_points = []
+                pass 
             else:
-                # Remove characters that are not needed and split the remaining string
-                clean_line = line.translate({ord(i): None for i in '[](),'})
-                points = [int(i) for i in clean_line.split()]
-                if points:  # if the line was not empty after cleaning
-                    access_points.append(points)
+                access_point_strings = line.split('),')
+                temp_points = []
+                for point_str in access_point_strings:
+                    clean_line = point_str.translate({ord(i): None for i in '[](),'})
+                    points = [int(i) for i in clean_line.split()]
+                    if points:
+                        temp_points.append(points)
+                if temp_points:
+                    access_points.append(temp_points)
+
+        if current_net_name:
+            nets[current_net_name] = access_points
 
     return nets
+
+
+def simple_routing_algorithm(net_pins):
+    paths = []
+        
+    for i in range(len(net_pins) - 1):
+        
+        start = Point3D(net_pins[i][0][0], net_pins[i][0][1], net_pins[i][0][2])
+        goal = Point3D(net_pins[i+1][0][0], net_pins[i+1][0][1], net_pins[i+1][0][2])
+        path = a_star_search(start, goal)
+        print(path)
+
+        # Simplify the path
+        simplified_path = []
+        transformed_path = []
+        j = 0
+        while j < len(path):
+            start = path[j]
+            while j < len(path) - 1 and path[j][2] == path[j+1][2]:
+                j += 1
+            end = path[j]
+            simplified_path.append((start[0], start[1], end[0], end[1], start[2]))
+            transformed_path.append((start[0], start[1], end[0]+1, end[1]+1, start[2]))
+            j += 1
+            
+
+        paths.append(transformed_path)
+    
+    return paths
 
 
 def main():
@@ -87,12 +119,22 @@ def main():
     
     print(cap_data)
     print(net_data)
-
-    # TODO: Process the data
-
+    
+    # Process the data for all nets
+    net_paths = {}
+    for net_name, net_pins in net_data.items():
+        print("net pins", net_pins)
+        net_paths[net_name] = simple_routing_algorithm(net_pins)
+        
     # Write the processed data to the .PR_output file
     with open(output_file, 'w') as file:
-        file.write('This is an example output file.\n')
+        for net_name, paths in net_paths.items():
+            file.write(f'{net_name}\n{{\n')
+            for path in paths:
+                # file.write(str(path))
+                for point in path:
+                    file.write(f'{point[0]} {point[1]} {point[2]} {point[3]} metal{point[4]}\n')
+            file.write('}')
 
 if __name__ == '__main__':
     main()
