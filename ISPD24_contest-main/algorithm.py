@@ -8,6 +8,10 @@ class Point3D:
 
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y and self.metaln == other.metaln
+    
+    # define subtraction
+    def __sub__(self, other):
+        return Point3D(self.x - other.x, self.y - other.y, self.metaln - other.metaln)
 
     def __hash__(self):
         return hash((self.x, self.y, self.metaln))
@@ -30,9 +34,9 @@ class AStarNode:
 
 def get_neighbors(point):
     moves = []
-    if point.metaln == 1:
+    if point.metaln == 0:
         moves = [(0, 0, 1)]
-    elif point.metaln % 2 == 0:
+    elif point.metaln % 2 == 1:
         moves = [(0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]
     else:
         moves = [(1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1)]
@@ -40,7 +44,7 @@ def get_neighbors(point):
     neighbors = []
     for dx, dy, dmetaln in moves:
         new_metaln = point.metaln + dmetaln
-        if new_metaln >= 1: 
+        if new_metaln >= 0: 
             neighbors.append(Point3D(point.x + dx, point.y + dy, new_metaln))
     return neighbors
 

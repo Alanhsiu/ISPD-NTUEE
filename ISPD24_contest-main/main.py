@@ -44,7 +44,6 @@ def read_cap_file(file_path):
         'layerMinLengths': layerMinLengths
     }
 
-
 def read_net_file(file_path):
     nets = {}
     with open(file_path, 'r') as file:
@@ -78,6 +77,15 @@ def read_net_file(file_path):
 
     return nets
 
+def transform_net_data(net_data):
+    # transform the coordinates of the access points, from (layer, x, y) to (x, y, layer)
+    for net_name, net_pins in net_data.items():
+        for i in range(len(net_pins)):
+            for j in range(len(net_pins[i])):
+                net_pins[i][j] = net_pins[i][j][1:] + [net_pins[i][j][0]]
+        net_data[net_name] = net_pins
+        
+    return net_data
 
 def simple_routing_algorithm(net_pins):
     paths = []
@@ -91,19 +99,25 @@ def simple_routing_algorithm(net_pins):
 
         # Simplify the path
         simplified_path = []
-        transformed_path = []
-        j = 0
+        start_point = Point3D(path[0][0], path[0][1], path[0][2])
+        j = 1
         while j < len(path):
-            start = path[j]
-            while j < len(path) - 1 and path[j][2] == path[j+1][2]:
-                j += 1
-            end = path[j]
-            simplified_path.append((start[0], start[1], end[0], end[1], start[2]))
-            transformed_path.append((start[0], start[1], end[0]+1, end[1]+1, start[2]))
+            end_point = Point3D(path[j][0], path[j][1], path[j][2])
+            sub_vector = end_point - start_point
+            while j != len(path) - 1:
+                next_point = Point3D(path[j+1][0], path[j+1][1], path[j+1][2])
+                next_sub_vector = next_point - end_point
+                if sub_vector == next_sub_vector:
+                    end_point = next_point
+                    j += 1
+                else:
+                    break
+            simplified_path.append([start_point.x, start_point.y, start_point.metaln, end_point.x, end_point.y, end_point.metaln])
+            start_point = end_point
             j += 1
             
-
-        paths.append(transformed_path)
+        paths.append(simplified_path)
+        print(simplified_path)
     
     return paths
 
@@ -115,10 +129,11 @@ def main():
 
     # Read the .cap and .net files
     cap_data = read_cap_file(cap_file)
-    net_data = read_net_file(net_file)
+    # net_data = read_net_file(net_file)
+    net_data = transform_net_data(read_net_file(net_file))
     
-    print(cap_data)
-    print(net_data)
+    # print(cap_data)
+    # print(net_data)
     
     # Process the data for all nets
     net_paths = {}
@@ -129,12 +144,12 @@ def main():
     # Write the processed data to the .PR_output file
     with open(output_file, 'w') as file:
         for net_name, paths in net_paths.items():
-            file.write(f'{net_name}\n{{\n')
+            file.write(f'{net_name}\n(\n')
             for path in paths:
                 # file.write(str(path))
                 for point in path:
-                    file.write(f'{point[0]} {point[1]} {point[2]} {point[3]} metal{point[4]}\n')
-            file.write('}')
+                    file.write(f'{point[0]} {point[1]} {point[2]} {point[3]} {point[4]} {point[5]}\n')
+            file.write(')')
 
 if __name__ == '__main__':
     main()
